@@ -27,21 +27,34 @@ class DQNAgents():
 
     def train(self, env, num_of_episodes, num_of_max_steps_per_episode=None,
               discount_factor=.99, batch_size=32, visualize=True):
+        """Implementation for Deep Q Learning agents trainer
 
+`       With an GYM enviroment, traing the agent to play the game.
+
+        # Arguments
+            env:                            OpenAI gym enviroment
+            num_of_episodes:                The number of episode to train
+            num_of_max_steps_per_episode:   To limit the maximum step per episode
+            discount_factor:                Discount for future step
+            batch_size:                     The size of minibatch to sample from experience replay
+            visualize:                      Disable rendering can speed up the training a little bit
+        """
+
+        # Obtain the size of state and action
         env_space = env.observation_space.shape[0]
         action_space = env.action_space.n
 
         total_step = 0
         total_episode = 0;
 
-        # Episode
+        # Episode Loop
         for episode in range(num_of_episodes):
 
             state = env.reset()
             step = 1
             total_reward = 0;
 
-            # Step in episode
+            # Step loop
             while True:
 
                 # Render grahpic on user request
@@ -74,10 +87,10 @@ class DQNAgents():
                     # Calculate the Q value and Q target (Name the variable according to the DQN2013 paper)
                     Q_forward = self.model.predict_on_batch(next_state_batch)
                     Q_target = self.model.predict_on_batch(state_batch)
-                    #print(Q_forward)
+
                     Q_target[range(batch_size), action_batch] = reward_batch + (1. - done_batch) * discount_factor * np.amax(Q_forward, axis=1)
 
-                    # Perform gradient descent on the minibatch
+                    # Perform gradient descent between Q target and Q predicted
                     self.model.train_on_batch(state_batch, Q_target)
 
                 # Termination state
@@ -101,6 +114,17 @@ class DQNAgents():
         return
 
     def test(self, env, num_of_episodes, num_of_max_steps_per_episode=None, visualize=True):
+        """Implementation for Deep Q Learning agents tester
+
+`       With a trained model, see how good is it performaning in a game
+
+        # Arguments
+            env:                            OpenAI gym enviroment
+            num_of_episodes:                The number of episode to play
+            num_of_max_steps_per_episode:   To limit the maximum step per episode
+            visualize:                      Disable rendering can speed up the training a little bit
+        """
+
         env_space = env.observation_space.shape[0]
         action_space = env.action_space.n
 

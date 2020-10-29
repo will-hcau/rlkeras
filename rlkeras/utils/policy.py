@@ -2,6 +2,12 @@ import numpy as np
 
 class GreedyQPolicy():
 
+    """Implementation of Greedy Q Policy
+
+`   Always select the action with the largest Q value
+
+    """
+
     def __init__(self):
         return
 
@@ -10,6 +16,14 @@ class GreedyQPolicy():
         return action
 
 class EpsGreedyQPolicy():
+
+    """Implementation of Epsilon Greedy Q Policy
+
+`   To ensure the agent will explore the environment with a
+    certein probablity. Define a value "epsilon" so that
+    the agent will random sample action at a controled probabiliy.
+
+    """
 
     def __init__(self, eps=.1):
         self.eps = eps
@@ -26,6 +40,19 @@ class EpsGreedyQPolicy():
         return action
 
 class BoltzmannQPolicy():
+
+    """Implementation of Boltzmann Q Policy
+
+    aks Boltzmann exploration in the paper
+
+`   The Boltzmann exploration policy is intended for discrete action spaces.
+    It assumes that each of the possible actions has some value assigned to it
+    (such as the Q value), and uses a softmax function to convert these values
+    into a distribution over the actions. It then samples the action for playing
+    out of the calculated distribution. An additional temperature schedule can be
+    given by the user, and will control the steepness of the softmax function.
+
+    """
 
     def __init__(self, tau=1., clip=(-500., 500.)):
         self.tau = tau
