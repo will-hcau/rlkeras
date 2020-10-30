@@ -24,6 +24,8 @@ pip uninstall rlkeras
 ## Algorithm Supported
 
  - Deep Q Network (DQN)
+ 	- Experience Replay
+ 	- Target Q
  - To be continue...
 
 ## Examples
@@ -34,4 +36,5 @@ python examples/dqn_cartpole_example.py --mode test
 ```
 
 ## Reference
-TODO
+1. Playing Atari with Deep Reinforcement Learning, Mnih et al., 2013
+2. Human-level control through deep reinforcement learning, Mnih et al., 2015
