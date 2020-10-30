@@ -1,5 +1,8 @@
 ## Reinforcement learning algorithm implementation on Keras
-![image](assets/dqn_cartpole_example.gif)
+<p float="left">
+  <img src="assets/dqn_cartpole_example.gif" width="300" />
+  <img src="assets/dqn_with_targetQ_lunarlander_example.gif" width="300" /> 
+</p>
 
 ## Background
 This is the most understandable implementation of reinforcement learning algorithm for whom learning those algorithm and find difficulty when looking at the papers. Hopefully the code will helps you to understand the algorithm more more efficiently and shorten the learning curve. Comments and explanation are written heavy in the code. And a few successful trainable examples is also provided. 
