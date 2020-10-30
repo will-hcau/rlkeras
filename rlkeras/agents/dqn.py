@@ -2,7 +2,7 @@ import gym
 import numpy as np
 
 import tensorflow.keras.backend as K
-from tensorflow.keras.models import Model
+from tensorflow.keras.models import Model, clone_model
 from tensorflow.keras.layers import Lambda, Input, Layer, Dense
 from tensorflow.keras.optimizers import Adam, SGD
 
@@ -12,7 +12,12 @@ from rlkeras.utils.memory import RandomReplayBuffer
 class DQNAgents():
 
     def __init__(self, model, policy, replay_memory_size=10000):
+        # Model Related
         self.model = model
+        self.target_model = clone_model(model)
+        self.target_model.set_weights(self.model.get_weights())
+
+        # Alogirthm related
         self.policy = policy
         self.replay_buffer = RandomReplayBuffer(replay_memory_size)
 
@@ -26,15 +31,19 @@ class DQNAgents():
         self.model.compile(optimizer=optimizer, loss=loss)
 
     def train(self, env, num_of_episodes, num_of_max_steps_per_episode=None,
-              discount_factor=.99, batch_size=32, visualize=True):
+              target_model_update=1, discount_factor=.99, batch_size=32,
+              visualize=True):
         """Implementation for Deep Q Learning agents trainer
 
 `       With an GYM enviroment, traing the agent to play the game.
+        Reference: "Playing Atari with Deep Reinforcement Learning, Mnih et al., 2013"
+                   "Human-level control through deep reinforcement learning, Mnih et al., 2015"
 
         # Arguments
             env:                            OpenAI gym enviroment
             num_of_episodes:                The number of episode to train
             num_of_max_steps_per_episode:   To limit the maximum step per episode
+            target_model_update:            The update frequency of the target Q network
             discount_factor:                Discount for future step
             batch_size:                     The size of minibatch to sample from experience replay
             visualize:                      Disable rendering can speed up the training a little bit
@@ -85,7 +94,7 @@ class DQNAgents():
                     done_batch = np.array(done_batch)
 
                     # Calculate the Q value and Q target (Name the variable according to the DQN2013 paper)
-                    Q_forward = self.model.predict_on_batch(next_state_batch)
+                    Q_forward = self.target_model.predict_on_batch(next_state_batch)
                     Q_target = self.model.predict_on_batch(state_batch)
 
                     Q_target[range(batch_size), action_batch] = reward_batch + (1. - done_batch) * discount_factor * np.amax(Q_forward, axis=1)
@@ -93,13 +102,17 @@ class DQNAgents():
                     # Perform gradient descent between Q target and Q predicted
                     self.model.train_on_batch(state_batch, Q_target)
 
+                # The target Q (Please refer to the 2015 DQN paper)
+                if (total_step + step) % target_model_update == 0:
+                    self.target_model.set_weights(self.model.get_weights())
+
                 # Termination state
                 if num_of_max_steps_per_episode is not None and step > num_of_max_steps_per_episode:
                     print("Episode OVER finished after {} timesteps".format(step))
                     break;
 
                 if done:
-                    print("Episode ({}/{}) finished after {} timesteps, total reward: {}".format(total_episode, num_of_episodes, step, total_reward))
+                    print("Episode ({}/{}) finished after {} timesteps, total reward: {}".format(total_episode+1, num_of_episodes, step, total_reward))
                     break
 
                 # Update statistic variable
