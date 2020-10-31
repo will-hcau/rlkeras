@@ -31,8 +31,8 @@ class DQNAgents():
         self.model.compile(optimizer=optimizer, loss=loss)
 
     def train(self, env, num_of_episodes, num_of_max_steps_per_episode=None,
-              target_model_update=1, discount_factor=.99, batch_size=32,
-              visualize=True):
+              target_model_update=1, enable_double_q=False, discount_factor=.99,
+              batch_size=32, visualize=True):
         """Implementation for Deep Q Learning agents trainer
 
 `       With an GYM enviroment, traing the agent to play the game.
@@ -44,6 +44,7 @@ class DQNAgents():
             num_of_episodes:                The number of episode to train
             num_of_max_steps_per_episode:   To limit the maximum step per episode
             target_model_update:            The update frequency of the target Q network
+            enable_double_q:                Enable double Q alogrithm
             discount_factor:                Discount for future step
             batch_size:                     The size of minibatch to sample from experience replay
             visualize:                      Disable rendering can speed up the training a little bit
@@ -93,11 +94,24 @@ class DQNAgents():
                     next_state_batch = np.array(next_state_batch)
                     done_batch = np.array(done_batch)
 
-                    # Calculate the Q value and Q target (Name the variable according to the DQN2013 paper)
-                    Q_forward = self.target_model.predict_on_batch(next_state_batch)
-                    Q_target = self.model.predict_on_batch(state_batch)
+                    if enable_double_q == True:
+                        # Please refer to the Double deep Q learning paper on 2015
+                        Q_forward = self.target_model.predict_on_batch(next_state_batch)
+                        Q_target = self.model.predict_on_batch(state_batch)
 
-                    Q_target[range(batch_size), action_batch] = reward_batch + (1. - done_batch) * discount_factor * np.amax(Q_forward, axis=1)
+                        # The tricky part is that to select action wusing the online network
+                        # While the target network predict the estmated Q value so to avoid
+                        # over estimating the Q value.
+                        action = np.argmax(self.model.predict_on_batch(next_state_batch), axis=-1)
+
+                        Q_target[range(batch_size), action_batch] = reward_batch + (1. - done_batch) * discount_factor * Q_forward[np.arange(len(Q_forward)), action]
+                    else:
+                        # Calculate the Q value and Q target (Name the variable according to the DQN2013 paper)
+                        Q_forward = self.target_model.predict_on_batch(next_state_batch)
+                        Q_target = self.model.predict_on_batch(state_batch)
+
+                        # With the estimated Q value, update the Q target we aimed.
+                        Q_target[range(batch_size), action_batch] = reward_batch + (1. - done_batch) * discount_factor * np.amax(Q_forward, axis=1)
 
                     # Perform gradient descent between Q target and Q predicted
                     self.model.train_on_batch(state_batch, Q_target)

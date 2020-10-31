@@ -49,7 +49,7 @@ dqn.compile(optimizer=Adam(lr=1e-3))
 
 
 if args.mode == 'train':
-	dqn.train(env, num_of_episodes=300, batch_size=64, target_model_update=2000, visualize=False)
+	dqn.train(env, num_of_episodes=300, batch_size=64, target_model_update=3000, enable_double_q=True, visualize=False)
 	dqn.save_weights('dqn_{}_weight.h5f'.format(ENV_NAME), overwrite=True)
 
 elif args.mode == 'test':
