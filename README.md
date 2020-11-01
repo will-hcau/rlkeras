@@ -30,6 +30,7 @@ pip uninstall rlkeras
  	- Experience Replay
  	- Target Q
  	- Double Q network
+ 	- Dueling Q network
  - To be continue...
 
 ## Examples
@@ -43,3 +44,4 @@ python examples/dqn_cartpole_example.py --mode test
 1. Playing Atari with Deep Reinforcement Learning, Mnih et al., 2013
 2. Human-level control through deep reinforcement learning, Mnih et al., 2015
 3. Deep Reinforcement Learning with Double Q-learning, van Hasselt et al., 2015
+4. Dueling Network Architectures for Deep Reinforcement Learning, Wang et al., 2016

@@ -34,7 +34,6 @@ model.add(Dense(16))
 model.add(Activation('relu'))
 model.add(Dense(nb_actions))
 model.add(Activation('linear'))
-print(model.summary())
 
 
 # Select policy
@@ -49,10 +48,10 @@ dqn.compile(optimizer=Adam(lr=1e-3))
 
 if args.mode == 'train':
 	dqn.train(env, num_of_episodes=200, batch_size=32, enable_double_q=True, visualize=False)
-	dqn.save_weights('dqn_{}_weight.h5f'.format(ENV_NAME), overwrite=True)
+	dqn.save_weights('ddqn_{}_weight.h5f'.format(ENV_NAME), overwrite=True)
 
 elif args.mode == 'test':
-	dqn.load_weights('dqn_{}_weight.h5f'.format(ENV_NAME))
+	dqn.load_weights('ddqn_{}_weight.h5f'.format(ENV_NAME))
 	dqn.test(env, num_of_episodes=10, visualize=True)
 
 

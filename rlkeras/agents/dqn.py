@@ -11,15 +11,41 @@ from rlkeras.utils.memory import RandomReplayBuffer
 
 class DQNAgents():
 
-    def __init__(self, model, policy, replay_memory_size=10000):
+    def __init__(self, model, policy, enable_dueling_network=False, replay_memory_size=10000):
         # Model Related
         self.model = model
-        self.target_model = clone_model(model)
-        self.target_model.set_weights(self.model.get_weights())
 
         # Alogirthm related
         self.policy = policy
         self.replay_buffer = RandomReplayBuffer(replay_memory_size)
+
+        # Rebuild network architecture for dueling network
+        if enable_dueling_network == True:
+
+            # Cut off the two layer at the end and record the number of action space at the last layer
+            layer = self.model.layers[-3]
+            nb_action = self.model.output.shape[-1]
+
+            # Add a fully connected layer with 1 more output respresenting A()
+            dueling_layer = Dense(nb_action + 1, activation='linear')(layer.output)
+
+            # Add lambda layer which add A() and the normalizied V()
+            # This is a bit complicated presenting on code, please refer to "https://arxiv.org/abs/1511.06581"
+            # for the network architecture visulization
+            # -------------------------------------------------------------------------------------------------
+            #             | -------Here is A()-------|   |------------And the normalizied V()-----------------|
+            dueling_summation_layer = lambda dl: K.expand_dims(dl[:, 0], -1) + (dl[:, 1:] - K.mean(dl[:, 1:], axis=1, keepdims=True))
+
+            output_layer = Lambda(dueling_summation_layer, output_shape=(nb_action,))(dueling_layer)
+
+            self.model = Model(inputs=self.model.input, outputs=output_layer)
+
+        # Clone a target model
+        self.target_model = clone_model(self.model)
+        self.target_model.set_weights(self.model.get_weights())
+
+        # Print network summary
+        print(model.summary())
 
     def load_weights(self, filepath):
         self.model.load_weights(filepath)
