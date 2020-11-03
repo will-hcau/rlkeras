@@ -31,6 +31,7 @@ pip uninstall rlkeras
  	- Target Q
  	- Double Q network
  	- Dueling Q network
+ 	- Multi-Step Q Learning
  - To be continue...
 
 ## Examples
