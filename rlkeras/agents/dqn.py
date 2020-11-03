@@ -11,13 +11,32 @@ from rlkeras.utils.memory import RandomReplayBuffer
 
 class DQNAgents():
 
-    def __init__(self, model, policy, enable_dueling_network=False, replay_memory_size=10000):
+    def __init__(self, model, policy, enable_double_q=False, enable_dueling_network=False, multi_step=1, replay_memory_size=10000):
+        """Implementation for Deep Q Learning agents 
+
+`       With an GYM enviroment, train the agent to play the game.
+
+        # Arguments
+            mode:                   The neural network model contructed by keras
+            policy:                 The policy to pick action during the training
+            enable_double_q:        Enable the double Q feature
+            enable_dueling_network: Enable the dueling network feature
+            multi_step:             Use N-step Q learning for training
+            replay_memory_size:     The size of experience replay buffer
+        """
+
         # Model Related
         self.model = model
 
         # Alogirthm related
         self.policy = policy
         self.replay_buffer = RandomReplayBuffer(replay_memory_size)
+
+        # Double Q feature
+        self.enable_double_q = enable_double_q
+
+        # Multi-step feature
+        self.multi_step = multi_step
 
         # Rebuild network architecture for dueling network
         if enable_dueling_network == True:
@@ -32,8 +51,8 @@ class DQNAgents():
             # Add lambda layer which add A() and the normalizied V()
             # This is a bit complicated presenting on code, please refer to "https://arxiv.org/abs/1511.06581"
             # for the network architecture visulization
-            # -------------------------------------------------------------------------------------------------
-            #             | -------Here is A()-------|   |------------And the normalizied V()-----------------|
+            # ----------------------------------------------------------------------------------------------------------------------
+            #                                   | -------Here is A()-------|   |------------And the normalizied V()-----------------|
             dueling_summation_layer = lambda dl: K.expand_dims(dl[:, 0], -1) + (dl[:, 1:] - K.mean(dl[:, 1:], axis=1, keepdims=True))
 
             output_layer = Lambda(dueling_summation_layer, output_shape=(nb_action,))(dueling_layer)
@@ -47,6 +66,18 @@ class DQNAgents():
         # Print network summary
         print(model.summary())
 
+    def _recursive_bellman_equation(self, index, reward, done, discount_factor, max_q_t_plus_n):
+
+        # Recall the bellman equation Q(st, at) = rt + discount * MAX Q(st+1, at + 1)
+        # When comes to a N-step Q learning, it become a recusive function:
+        # Q(st, at) = rt + discount * MAX Q(rt+1 + discount * MAX Q(rt + 2, at + 2))
+        if (index >= self.multi_step - 1):
+            return reward[:, index] + (1. - done[:, index]) * discount_factor * max_q_t_plus_n
+
+        index += 1
+
+        return reward[:, index] + (1. - done[:, index]) * discount_factor * self._recursive_bellman_equation(index, reward, done, discount_factor, max_q_t_plus_n)
+
     def load_weights(self, filepath):
         self.model.load_weights(filepath)
 
@@ -57,8 +88,7 @@ class DQNAgents():
         self.model.compile(optimizer=optimizer, loss=loss)
 
     def train(self, env, num_of_episodes, num_of_max_steps_per_episode=None,
-              target_model_update=1, enable_double_q=False, discount_factor=.99,
-              batch_size=32, visualize=True):
+              target_model_update=1, discount_factor=.99, batch_size=32, visualize=True):
         """Implementation for Deep Q Learning agents trainer
 
 `       With an GYM enviroment, traing the agent to play the game.
@@ -70,7 +100,6 @@ class DQNAgents():
             num_of_episodes:                The number of episode to train
             num_of_max_steps_per_episode:   To limit the maximum step per episode
             target_model_update:            The update frequency of the target Q network
-            enable_double_q:                Enable double Q alogrithm
             discount_factor:                Discount for future step
             batch_size:                     The size of minibatch to sample from experience replay
             visualize:                      Disable rendering can speed up the training a little bit
@@ -112,15 +141,19 @@ class DQNAgents():
 
                 if total_step > batch_size:
                     # Sample random minibatch of transition from replay buffer
-                    minibatch = self.replay_buffer.sample(batch_size)
+                    minibatch = self.replay_buffer.sample(batch_size, self.multi_step)
 
                     state_batch, action_batch, reward_batch, next_state_batch, done_batch = zip(*minibatch)
 
-                    state_batch = np.array(state_batch)
-                    next_state_batch = np.array(next_state_batch)
-                    done_batch = np.array(done_batch)
+                    # Obtain the N-step item: [:,0] refer to 't' and [:,-1] refer to 't+N'
+                    state_batch = np.array(state_batch)[:,0]
+                    action_batch = np.array(action_batch)[:,0]
+                    next_state_batch = np.array(next_state_batch)[:,-1]
 
-                    if enable_double_q == True:
+                    done_batch = np.array(done_batch)
+                    reward_batch = np.array(reward_batch)
+
+                    if self.enable_double_q == True:
                         # Please refer to the Double deep Q learning paper on 2015
                         Q_forward = self.target_model.predict_on_batch(next_state_batch)
                         Q_target = self.model.predict_on_batch(state_batch)
@@ -130,14 +163,14 @@ class DQNAgents():
                         # over estimating the Q value.
                         action = np.argmax(self.model.predict_on_batch(next_state_batch), axis=-1)
 
-                        Q_target[range(batch_size), action_batch] = reward_batch + (1. - done_batch) * discount_factor * Q_forward[np.arange(len(Q_forward)), action]
+                        Q_target[range(batch_size), action_batch] = self._recursive_bellman_equation(0, reward_batch, done_batch, discount_factor, Q_forward[np.arange(len(Q_forward)), action])
                     else:
                         # Calculate the Q value and Q target (Name the variable according to the DQN2013 paper)
                         Q_forward = self.target_model.predict_on_batch(next_state_batch)
                         Q_target = self.model.predict_on_batch(state_batch)
 
                         # With the estimated Q value, update the Q target we aimed.
-                        Q_target[range(batch_size), action_batch] = reward_batch + (1. - done_batch) * discount_factor * np.amax(Q_forward, axis=1)
+                        Q_target[range(batch_size), action_batch] = self._recursive_bellman_equation(0, reward_batch, done_batch, discount_factor, np.amax(Q_forward, axis=1))
 
                     # Perform gradient descent between Q target and Q predicted
                     self.model.train_on_batch(state_batch, Q_target)

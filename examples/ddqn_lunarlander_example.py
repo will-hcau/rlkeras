@@ -6,7 +6,7 @@ from tensorflow.keras.layers import Dense, Activation, Flatten, BatchNormalizati
 from tensorflow.keras.optimizers import Adam
 
 from rlkeras.agents.dqn import DQNAgents
-from rlkeras.utils.policy import BoltzmannQPolicy
+from rlkeras.utils.policy import BoltzmannQPolicy, GreedyQPolicy
 
 
 ENV_NAME = 'LunarLander-v2'
@@ -39,13 +39,13 @@ model.add(Activation('linear'))
 
 # Start training or testing
 if args.mode == 'train':
-	dqn = DQNAgents(model, enable_dueling_network=True, policy=BoltzmannQPolicy())
+	dqn = DQNAgents(model, enable_dueling_network=True, enable_double_q=True, multi_step=10, policy=BoltzmannQPolicy())
 	dqn.compile(optimizer=Adam(lr=1e-3))
-	dqn.train(env, num_of_episodes=300, batch_size=64, target_model_update=3000, enable_double_q=True, visualize=False)
+	dqn.train(env, num_of_episodes=500, batch_size=64, target_model_update=3000, visualize=False)
 	dqn.save_weights('ddqn_{}_weight.h5f'.format(ENV_NAME), overwrite=True)
 
 elif args.mode == 'test':
-	dqn = DQNAgents(model, policy=GreedyQPolicy())
+	dqn = DQNAgents(model, enable_dueling_network=True, policy=GreedyQPolicy())
 	dqn.load_weights('ddqn_{}_weight.h5f'.format(ENV_NAME))
 	dqn.test(env, num_of_episodes=10, visualize=True)
 
